@@ -81,6 +81,7 @@ const lyricChangeReducer = (state = initialState.songsById, action) => {
   }
 }
 
+
 const songChangeReducer = (state = initialState.currentSongId, action) => {
   switch (action.type) {
     case 'CHANGE_SONG':
@@ -89,6 +90,17 @@ const songChangeReducer = (state = initialState.currentSongId, action) => {
       return state;
   }
 }
+
+const rootReducer = this.Redux.combineReducers({
+  currentSongId: songChangeReducer,
+  songsById: lyricChangeReducer
+});
+
+// REDUX STORE
+const { createStore } = Redux;
+const store = createStore(rootReducer);
+
+
 // JEST TESTS + SETUP WILL GO HERE
 const { expect } = window;
 
@@ -133,41 +145,80 @@ expect(songChangeReducer(initialState, { type: null})).toEqual(initialState);
 
 expect(songChangeReducer(initialState.currentSongId, { type: 'CHANGE_SONG', newSelectedSongId: 1 })).toEqual(1);
 
-// REDUX STORE
-const { createStore } = Redux;
-const store = createStore(lyricChangeReducer);
+expect(rootReducer(initialState, { type: null })).toEqual(initialState);
+expect(store.getState().currentSongId).toEqual(songChangeReducer(undefined, { type: null }));
+expect(store.getState().songsById).toEqual(lyricChangeReducer(undefined, { type: null }));
+
+
 
 
 // // RENDERING STATE IN DOM
-// const renderLyrics = () => {
-//   // defines a lyricsDisplay constant referring to the div with a 'lyrics' ID in index.html
-//   const lyricsDisplay = document.getElementById('lyrics');
-//   // if there are already lyrics in this div, remove them one-by-one until it is empty:
-//   while (lyricsDisplay.firstChild) {
-//     lyricsDisplay.removeChild(lyricsDisplay.firstChild);
-//   }
-//   // Locates the song lyric at the current arrayPosition:
-//   const currentLine = store.getState().songLyricsArray[store.getState().arrayPosition];
-//   // Creates DOM text node containing the song lyric identified in line above:
-//   const renderedLine = document.createTextNode(currentLine);
-//   // Adds text node created in line above to 'lyrics' div in DOM
-//   document.getElementById('lyrics').appendChild(renderedLine);
-// }
+const renderLyrics = () => {
+  // defines a lyricsDisplay constant referring to the div with a 'lyrics' ID in index.html
+  const lyricsDisplay = document.getElementById('lyrics');
+  // if there are already lyrics in this div, remove them one-by-one until it is empty:
+  while (lyricsDisplay.firstChild) {
+    lyricsDisplay.removeChild(lyricsDisplay.firstChild);
+  }
+  if (store.getState().currentSongId) {
+    const currentLine = document.createTextNode(store.getState().songsById[store.getState().currentSongId].songArray[store.getState().songsById[store.getState().currentSongId].arrayPosition]);
+    document.getElementById('lyrics').appendChild(currentLine);
+  } else {
+    const selectSongMessage = document.createTextNode("Select a song from the menu above to sing along!");
+    document.getElementById('lyrics').appendChild(selectSongMessage);
+  }
+}
 
-// // runs renderLyrics() method from above when page is finished loading.
-// // window.onload is HTML5 version of jQuery's $(document).ready()
-// window.onload = function () {
-//   renderLyrics();
-// }
+const renderSongs = () => {
+  const songsById = store.getState().songsById;
+  for (const songKey in songsById) {
+    const song = songsById[songKey]
+    const li = document.createElement('li');
+    const h3 = document.createElement('h3');
+    const em = document.createElement('em');
+    const songTitle = document.createTextNode(song.title);
+    const songArtist = document.createTextNode(' by ' + song.artist);
+    em.appendChild(songTitle);
+    h3.appendChild(em);
+    h3.appendChild(songArtist);
+    h3.addEventListener('click', function() {
+      selectSong(song.songId);
+    });
+    li.appendChild(h3);
+    document.getElementById('songs').appendChild(li);
+  }
+}
 
-
-// // CLICK LISTENER
-// const userClick = () => {
-//   if (store.getState().arrayPosition === store.getState().songLyricsArray.length - 1) {
-//     store.dispatch({ type: 'RESTART_SONG' });
-//   } else {
-//     store.dispatch({ type: 'NEXT_LYRIC' });
-//   }
-// }
-// // SUBSCRIBE TO REDUX STORE
-// store.subscribe(renderLyrics);
+// runs renderLyrics() method from above when page is finished loading.
+// window.onload is HTML5 version of jQuery's $(document).ready()
+window.onload = function () {
+  renderSongs();
+  renderLyrics();
+}
+// CLICK LISTENER
+const userClick = () => {
+  if (store.getState().songsById[store.getState().currentSongId].arrayPosition === store.getState().songsById[store.getState().currentSongId].songArray.length - 1) {
+    store.dispatch({ type: 'RESTART_SONG',
+                            currentSongId: store.getState().currentSongId });
+  } else {
+    store.dispatch({ type: 'NEXT_LYRIC',
+                      currentSongId: store.getState().currentSongId });
+  }
+}
+const selectSong = (newSongId) => {
+  let action;
+  if (store.getState().currentSongId) {
+    action = {
+      type: 'RESTART_SONG',
+      currentSongId: store.getState().currentSongId
+    }
+    store.dispatch(action);
+  }
+  action = {
+    type: 'CHANGE_SONG',
+    newSelectedSongId:newSongId
+  }
+  store.dispatch(action);
+}
+// SUBSCRIBE TO REDUX STORE
+store.subscribe(renderLyrics);
